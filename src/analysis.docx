@@ -1,0 +1,60 @@
+import pandas as pd
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score
+from sklearn.inspection import permutation_importance
+import matplotlib.pyplot as plt
+
+# 读取csv文件（假设文件在当前目录）
+df = pd.read_csv("glcm_features_compatible.csv")
+
+# 提取特征列（4个GLCM特征）和标签列（class）
+feature_cols = ['energy', 'contrast', 'correlation', 'entropy']
+X = df[feature_cols].values  # 特征矩阵：每行是4个特征值
+y = df['class'].values       # 标签向量：每行是类别（D1-D6）
+set_type = df['set_type'].values  # 区分训练/测试集
+
+# 分离训练集和测试集
+X_train = X[set_type == 'train']
+y_train = y[set_type == 'train']
+X_test = X[set_type == 'test']
+y_test = y[set_type == 'test']
+
+# 特征标准化
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# 重新训练KNN模型
+knn = KNeighborsClassifier(n_neighbors=3)
+knn.fit(X_train_scaled, y_train)
+
+# 原始准确率（作为基准）
+original_acc = accuracy_score(y_test, knn.predict(X_test_scaled))
+print(f"原始准确率: {original_acc:.4f}")  # 你的结果是0.9167
+
+
+# 计算置换重要性（针对测试集）
+perm_importance = permutation_importance(
+    knn, X_test_scaled, y_test,  # 模型、测试集特征、测试集标签
+    n_repeats=10,                # 重复打乱次数（取平均，减少随机性）
+    random_state=42              # 固定随机种子，结果可复现
+)
+
+# 整理结果：特征名→重要性得分
+importance_df = pd.DataFrame({
+    'feature': feature_cols,
+    'importance': perm_importance.importances_mean  # 多次重复的平均下降值
+}).sort_values(by='importance', ascending=False)  # 按重要性从高到低排序
+
+# 打印结果
+print("特征重要性（置换重要性）：")
+print(importance_df)
+
+# 可视化（更直观）
+plt.barh(importance_df['feature'], importance_df['importance'])
+plt.xlabel("置换重要性得分（准确率下降值）")
+plt.ylabel("特征")
+plt.title("GLCM特征对KNN分类结果的贡献")
+plt.gca().invert_yaxis()  # 让重要性高的特征在上面
+plt.show()

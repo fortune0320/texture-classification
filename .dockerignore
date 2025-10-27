@@ -1,0 +1,8 @@
+.git
+.gitignore
+.env
+venv
+*.pyc
+__pycache__
+data/raw  # 可选，根据实际需求决定是否包含原始数据
+data/processed

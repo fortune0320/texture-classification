@@ -1,0 +1,194 @@
+import os
+import cv2
+import numpy as np
+from PIL import Image
+import random
+import shutil
+
+def add_salt_pepper_noise(image, salt_prob=0.01, pepper_prob=0.01):
+    """
+    添加椒盐噪声
+    salt_prob: 盐噪声概率 (白点)
+    pepper_prob: 椒噪声概率 (黑点)
+    """
+    noisy_image = np.copy(image)
+    
+    # 添加盐噪声 (白点)
+    salt_mask = np.random.random(image.shape) < salt_prob
+    noisy_image[salt_mask] = 255
+    
+    # 添加椒噪声 (黑点)
+    pepper_mask = np.random.random(image.shape) < pepper_prob
+    noisy_image[pepper_mask] = 0
+    
+    return noisy_image
+
+def add_gaussian_noise(image, mean=0, sigma=25):
+    """
+    添加高斯噪声
+    """
+    row, col = image.shape
+    gauss = np.random.normal(mean, sigma, (row, col))
+    noisy_image = image + gauss
+    noisy_image = np.clip(noisy_image, 0, 255)
+    return noisy_image.astype(np.uint8)
+
+def process_texture_images():
+    """处理纹理图像并添加噪声"""
+    base_dir = "E:/Keep Learning part.2/semester 1/Machine Learning/Brodatz_Project"
+    raw_data_dir = os.path.join(base_dir, "raw_data")  # 修改为raw_data目录
+    processed_dir = os.path.join(base_dir, "processed_data")
+    
+    # 确保处理后的目录存在
+    if not os.path.exists(processed_dir):
+        os.makedirs(processed_dir)
+        print(f"创建主目录: {processed_dir}")
+    
+    # 定义6个纹理类别
+    texture_classes = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6']
+    
+    for class_name in texture_classes:
+        print(f"\n处理类别: {class_name}")
+        
+        # 创建训练和测试目录
+        train_dir = os.path.join(processed_dir, f"{class_name}_train")
+        test_dir = os.path.join(processed_dir, f"{class_name}_test")
+        
+        for dir_path in [train_dir, test_dir]:
+            if not os.path.exists(dir_path):
+                os.makedirs(dir_path)
+                print(f"创建目录: {dir_path}")
+        
+        # 处理每个类别的图像 - 从raw_data读取TIF文件
+        class_dir = os.path.join(raw_data_dir, class_name)
+        if os.path.exists(class_dir):
+            # 读取TIF格式的图片
+            image_files = [f for f in os.listdir(class_dir) if f.endswith('.tif')]
+            print(f"找到 {len(image_files)} 张TIF图片")
+            
+            # 确保有足够的图像 (现在需要16张：10训练 + 6测试)
+            if len(image_files) >= 16:
+                # 随机选择图像用于训练和测试
+                random.shuffle(image_files)
+                train_files = image_files[:10]  # 10张训练
+                test_files = image_files[10:16]  # 6张测试
+                
+                # 处理训练图像 (不添加噪声)
+                train_count = 0
+                for i, filename in enumerate(train_files):
+                    image_path = os.path.join(class_dir, filename)
+                    try:
+                        # 读取TIF图像
+                        image = Image.open(image_path)
+                        # 转换为灰度图
+                        if image.mode != 'L':
+                            image = image.convert('L')
+                        image = np.array(image)
+                        
+                        # 保存为PNG格式的训练图像
+                        output_path = os.path.join(train_dir, f"{class_name}_{i+1}.png")
+                        cv2.imwrite(output_path, image)
+                        train_count += 1
+                        
+                    except Exception as e:
+                        print(f"处理训练图像 {filename} 时出错: {e}")
+                
+                # 处理测试图像 (添加噪声)
+                test_count = 0
+                for i, filename in enumerate(test_files):
+                    image_path = os.path.join(class_dir, filename)
+                    try:
+                        # 读取TIF图像
+                        image = Image.open(image_path)
+                        # 转换为灰度图
+                        if image.mode != 'L':
+                            image = image.convert('L')
+                        image = np.array(image)
+                        
+                        # 添加椒盐噪声到测试图像
+                        noisy_image = add_salt_pepper_noise(image, 
+                                                          salt_prob=0.002,
+                                                          pepper_prob=0.002)
+                        
+                        # 保存为PNG格式的测试图像
+                        output_path = os.path.join(test_dir, f"{class_name}_{i+1}.png")
+                        cv2.imwrite(output_path, noisy_image)
+                        test_count += 1
+                        
+                        print(f"  添加噪声: {class_name}_{i+1}.png")
+                        
+                    except Exception as e:
+                        print(f"处理测试图像 {filename} 时出错: {e}")
+                
+                print(f"  成功处理: {train_count}张训练 + {test_count}张测试")
+                
+            else:
+                print(f"警告: {class_name} 类别的图像数量不足 (需要至少16张，当前{len(image_files)}张)")
+        else:
+            print(f"警告: 找不到目录 {class_dir}")
+    
+    print("\n图像处理完成！已为测试集添加噪声。")
+
+def verify_folder_structure():
+    """验证文件夹结构是否正确创建"""
+    base_dir = "E:/Keep Learning part.2/semester 1/Machine Learning/Brodatz_Project"
+    processed_dir = os.path.join(base_dir, "processed_data")
+    
+    if os.path.exists(processed_dir):
+        print(f"\n=== 文件夹结构验证 ===")
+        print(f"主目录: {processed_dir}")
+        
+        texture_classes = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6']
+        
+        for class_name in texture_classes:
+            train_dir = os.path.join(processed_dir, f"{class_name}_train")
+            test_dir = os.path.join(processed_dir, f"{class_name}_test")
+            
+            train_exists = os.path.exists(train_dir)
+            test_exists = os.path.exists(test_dir)
+            
+            train_files = []
+            test_files = []
+            
+            if train_exists:
+                train_files = [f for f in os.listdir(train_dir) if f.endswith('.png')]
+            
+            if test_exists:
+                test_files = [f for f in os.listdir(test_dir) if f.endswith('.png')]
+            
+            print(f"{class_name}:")
+            print(f"  Train目录: {'存在' if train_exists else '缺失'} ({len(train_files)}张PNG图片)")
+            print(f"  Test目录:  {'存在' if test_exists else '缺失'} ({len(test_files)}张PNG图片)")
+
+def main():
+    """主函数"""
+    print("开始处理纹理图像...")
+    print("数据源: raw_data目录中的TIF文件")
+    print("数据集分配: 10张训练 + 6张测试")
+    print("将为测试集图像添加椒盐噪声以降低模型准确率")
+    
+    # 清空processed_data目录（如果存在）
+    processed_dir = "E:/Keep Learning part.2/semester 1/Machine Learning/Brodatz_Project/processed_data"
+    if os.path.exists(processed_dir):
+        for item in os.listdir(processed_dir):
+            item_path = os.path.join(processed_dir, item)
+            if os.path.isdir(item_path):
+                shutil.rmtree(item_path)
+        print("已清空processed_data目录")
+    
+    # 处理图像
+    process_texture_images()
+    
+    # 验证文件夹结构
+    verify_folder_structure()
+    
+    print("\n处理完成！")
+    print("处理流程:")
+    print("1. 从 raw_data/D1/, raw_data/D2/, ... 读取TIF文件")
+    print("2. 转换为PNG格式")
+    print("3. 训练集: 10张原始图像（无噪声）")
+    print("4. 测试集: 6张添加了椒盐噪声的图像")
+    print("5. 保存到 processed_data/D1_train/, processed_data/D1_test/, ...")
+
+if __name__ == "__main__":
+    main()
