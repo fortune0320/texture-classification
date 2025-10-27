@@ -1,124 +1,86 @@
-name: GLCM Texture Classification CI/CD  # 工作流名称，可自定义
+name: GLCM Texture Classification CI/CD
 
-# 触发条件：推送代码到任意分支时自动运行
 on:
   push:
-    branches: [ "**" ]  # 所有分支推送均触发，若需指定分支（如main），可改为 [ "main", "feature/complete-ci-cd" ]
+    branches: ["**"]  # 所有分支推送触发
   pull_request:
-    branches: [ "main" ]  # PR合并到main分支时触发（可选）
+    branches: ["main"]  # PR到main分支触发
 
 jobs:
-  # 任务1：代码质量检查 + MLflow训练 + 结果同步到DagsHub
   quality-assurance:
-    runs-on: ubuntu-latest  # 使用Ubuntu系统运行
+    runs-on: ubuntu-latest
     permissions:
-      contents: write  # 允许工作流推送代码（如同步metrics.json到仓库）
-      pull-requests: read  # 读取PR信息（可选）
+      contents: write
+      pull-requests: read
 
     steps:
-      # 步骤1：拉取GitHub仓库代码
       - name: Checkout repository code
-        uses: actions/checkout@v4  # 使用最新版checkout工具
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 拉取完整历史记录（避免DVC依赖问题）
+          fetch-depth: 0
 
-      # 步骤2：设置Python环境（匹配本地使用的Python版本，如3.12）
       - name: Set up Python environment
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"  # 必须与本地虚拟环境的Python版本一致
-          cache: "pip"  # 缓存pip依赖，加速后续安装
+          python-version: "3.12"
+          cache: "pip"
 
-      # 步骤3：安装项目依赖（包含mlflow、dagshub、opencv等）
       - name: Install project dependencies
         run: |
-          python -m pip install --upgrade pip  # 升级pip
-          pip install -r requirements.txt  # 安装requirements.txt中的所有依赖
-          # 额外安装可能缺失的系统依赖（如OpenCV需要的库）
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          # 适配Ubuntu 24.04的系统依赖（替换libgl1-mesa-glx为libgl1）
           sudo apt-get update && sudo apt-get install -y libgl1 libglib2.0-0
--       name: Install DVC
-        run: |
-      # 安装DVC（匹配项目使用的版本，此处安装最新版）
-          pip install dvc dvc-dagshub
 
-      # 步骤4：配置DVC远程（关联DagsHub存储，拉取数据集）
+      - name: Install DVC (数据版本控制工具)
+        run: |
+          pip install dvc dvc-dagshub  # 安装DVC及DagsHub集成插件
+
       - name: Configure DVC remote (connect to DagsHub)
         env:
-          # 从GitHub Secrets中读取DagsHub凭证（避免硬编码）
           DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
           DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
-          # 添加DagsHub作为DVC的默认远程存储
           dvc remote add -d dagshub https://dagshub.com/${DAGSHUB_USERNAME}/texture-classification.dvc
-          # 配置DVC认证（使用DagsHub用户名和Token）
           dvc remote modify dagshub auth basic
           dvc remote modify dagshub user ${DAGSHUB_USERNAME}
           dvc remote modify dagshub password ${DAGSHUB_TOKEN}
 
-      # 步骤5：拉取DVC管理的数据集（data/目录，供训练使用）
       - name: Pull dataset with DVC
-        run: dvc pull  # 从DagsHub拉取数据，确保训练时有数据可用
+        run: dvc pull
 
-      # 步骤6：代码质量检查1 - 格式检查（使用black）
       - name: Check code formatting with Black
-        run: black --check src/ tests/  # 检查src和tests目录的代码格式，不自动修改
+        run: black --check src/ tests/
 
-      # 步骤7：代码质量检查2 - 语法 lint（使用flake8）
       - name: Lint code with Flake8
         run: |
           flake8 src/ tests/ --count \
-            --select=E9,F63,F7,F82 \  # 只检查严重语法错误（避免无关警告）
-            --show-source --statistics  # 显示错误位置和统计信息
+            --select=E9,F63,F7,F82 \
+            --show-source --statistics
 
-      # 步骤8：代码质量检查3 - 单元测试（若有tests目录，需确保测试脚本存在）
       - name: Run unit tests with pytest
-        run: pytest tests/ -v  # 运行测试并显示详细日志，无测试可注释此步骤
+        run: pytest tests/ -v
 
-      # ###########################################################
-      # 核心新增：运行训练脚本，集成MLflow跟踪（关键步骤）
-      # ###########################################################
       - name: Run training with MLflow tracking
         env:
-          # 传递DagsHub凭证到环境变量，供MLflow同步使用
           DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
           DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
-          # 传递数据目录环境变量（匹配训练脚本中的BASE_DIR）
           BASE_DIR: "data"
         run: |
           echo "Starting training with MLflow tracking..."
-          # 执行训练脚本（确保路径是src/train.py，若脚本路径不同需修改）
           python src/train.py
           echo "Training completed. MLflow logs synced to DagsHub."
 
-      # 步骤10：同步结果到DagsHub（含DVC数据、metrics指标）
       - name: Sync results to DagsHub
         env:
           DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
           DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
-          # 1. 推送更新后的DVC数据（若训练中修改了数据）
           dvc push
-          
-          # 2. 配置Git用户（用于提交metrics.json）
           git config --global user.email "ci-cd@github.com"
           git config --global user.name "GitHub Actions CI"
-          
-          # 3. 导出DVC metrics到文件（若训练脚本未生成，可注释）
           dvc metrics show --json > metrics.json || echo "No DVC metrics to export"
-          
-          # 4. 提交并推送metrics.json到GitHub（间接同步到DagsHub）
           git add metrics.json
-          git commit -m "ci: update metrics from GitHub Actions" || echo "No metrics changes to commit"
-          # 推送时使用DagsHub的Git地址（确保权限）
+          git commit -m "ci: update metrics from GitHub Actions" || echo "No metrics changes"
           git remote add dagshub https://${DAGSHUB_USERNAME}:${DAGSHUB_TOKEN}@dagshub.com/${DAGSHUB_USERNAME}/texture-classification.git
-          git push dagshub HEAD:${{ github.ref_name }} || echo "No changes to push to DagsHub"
-
-  # 任务2：构建Docker镜像（若之前有此任务，可保留，无则可删除）
-  build-docker:
-    needs: quality-assurance  # 依赖quality-assurance任务，确保训练完成后再构建
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      # 后续Docker构建步骤（如登录DockerHub、构建镜像、推送）可保留原配置
+          git push dagshub HEAD:${{ github.ref_name }} || echo "No changes to push"
