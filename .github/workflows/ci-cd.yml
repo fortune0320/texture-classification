@@ -35,7 +35,7 @@ jobs:
           python -m pip install --upgrade pip  # 升级pip
           pip install -r requirements.txt  # 安装requirements.txt中的所有依赖
           # 额外安装可能缺失的系统依赖（如OpenCV需要的库）
-          sudo apt-get update && sudo apt-get install -y libgl1-mesa-glx libglib2.0-0
+          sudo apt-get update && sudo apt-get install -y libgl1 libglib2.0-0
 
       # 步骤4：配置DVC远程（关联DagsHub存储，拉取数据集）
       - name: Configure DVC remote (connect to DagsHub)
