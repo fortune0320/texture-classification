@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 # 定义 main 函数（关键：让 main.py 可以导入）
 def main():
     # 读取csv文件（使用容器内绝对路径）
-    df = pd.read_csv("/app/glcm_features_compatible.csv")
+    df = pd.read_csv("glcm_features_compatible.csv")
 
     # 检查并补充 set_type 列（原CSV中缺少，必须添加）
     if "set_type" not in df.columns:
@@ -69,7 +69,7 @@ def main():
     plt.ylabel("特征")
     plt.title("GLCM特征对KNN分类结果的贡献")
     plt.gca().invert_yaxis()
-    plt.savefig("/app/feature_importance.png")  # 保存到容器内，可导出查看
+    plt.savefig("feature_importance.png")  # 保存到容器内，可导出查看
     print("特征重要性图已保存为 feature_importance.png")
 
 
