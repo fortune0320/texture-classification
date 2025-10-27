@@ -34,7 +34,7 @@ jobs:
 
       - name: Install DVC (数据版本控制工具)
         run: |
-          pip install dvc dvc-dagshub  # 安装DVC及DagsHub集成插件
+          pip install dvc[dagshub]  
 
       - name: Configure DVC remote (connect to DagsHub)
         env:
