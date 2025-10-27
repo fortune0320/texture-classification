@@ -8,7 +8,7 @@ def test_manual_glcm():
 
     # 测试0度方向（水平方向，每行相邻像素对）
     glcm_0 = manual_glcm(image, distance=1, angle=0)
-    
+
     # 修复：考虑归一化，总像素对数量为2，所以每个非零值应为 1/2 = 0.5
     assert np.isclose(glcm_0[0, 1], 0.5)  # (0,1)对的归一化值
     assert np.isclose(glcm_0[2, 3], 0.5)  # (2,3)对的归一化值

@@ -56,7 +56,9 @@ def process_texture_images():
                             image = image.convert("L")
                         image = np.array(image)
 
-                        output_path = os.path.join(train_dir, class_name + "_%d.png" % (i+1))
+                        output_path = os.path.join(
+                            train_dir, class_name + "_%d.png" % (i + 1)
+                        )
                         cv2.imwrite(output_path, image)
                         train_count += 1
 
@@ -76,7 +78,9 @@ def process_texture_images():
                             image, salt_prob=0.002, pepper_prob=0.002
                         )
 
-                        output_path = os.path.join(test_dir, class_name + "_%d.png" % (i+1))
+                        output_path = os.path.join(
+                            test_dir, class_name + "_%d.png" % (i + 1)
+                        )
                         cv2.imwrite(output_path, noisy_image)
                         test_count += 1
 
@@ -88,7 +92,10 @@ def process_texture_images():
                 print("  成功处理: %d张训练 + %d张测试" % (train_count, test_count))
 
             else:
-                print("警告: %s 类别的图像数量不足 (需要至少16张，当前%d张)" % (class_name, len(image_files)))
+                print(
+                    "警告: %s 类别的图像数量不足 (需要至少16张，当前%d张)"
+                    % (class_name, len(image_files))
+                )
         else:
             print("警告: 找不到目录 %s" % class_dir)
 
@@ -122,8 +129,14 @@ def verify_folder_structure():
                 test_files = [f for f in os.listdir(test_dir) if f.endswith(".png")]
 
             print("%s:" % class_name)
-            print("  Train目录: %s (%d张PNG图片)" % ("存在" if train_exists else "缺失", len(train_files)))
-            print("  Test目录:  %s (%d张PNG图片)" % ("存在" if test_exists else "缺失", len(test_files)))
+            print(
+                "  Train目录: %s (%d张PNG图片)"
+                % ("存在" if train_exists else "缺失", len(train_files))
+            )
+            print(
+                "  Test目录:  %s (%d张PNG图片)"
+                % ("存在" if test_exists else "缺失", len(test_files))
+            )
 
 
 def main():

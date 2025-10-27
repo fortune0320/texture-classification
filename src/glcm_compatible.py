@@ -63,6 +63,7 @@ def calculate_contrast(glcm):
             contrast += glcm[i, j] * (i - j) ** 2
     return contrast
 
+
 def calculate_energy(glcm):
     return np.sum(glcm**2)
 

@@ -1,8 +1,10 @@
 """主程序入口"""
+
 import sys
 import os
+
 # 将项目根目录（/app）添加到 Python 路径中
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/..')
+sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/..")
 from src.dataset_processor import main as process_data
 from src.glcm_compatible import main as extract_features_and_train
 from src.analysis import main as run_analysis
