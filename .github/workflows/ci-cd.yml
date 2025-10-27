@@ -68,7 +68,7 @@ jobs:
           BASE_DIR: "data"
         run: |
           echo "Starting training with MLflow tracking..."
-          python src/train.py
+          python src/analysis.py
           echo "Training completed. MLflow logs synced to DagsHub."
 
       - name: Sync results to DagsHub
